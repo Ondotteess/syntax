@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="SysPro.TM.Bindings">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/dependency/SysPro.TM.Bindings/SysPro.TM.JVM-sources.jar!/" />
+      <root url="jar://$PROJECT_DIR$/dependency/SysPro.TM.Bindings/SysPro.TM.JVM-javadoc.jar!/" />
+      <root url="jar://$PROJECT_DIR$/dependency/SysPro.TM.Bindings/SysPro.TM.JVM.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
