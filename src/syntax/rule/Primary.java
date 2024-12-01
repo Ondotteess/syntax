@@ -26,7 +26,7 @@ public class Primary implements Rule {
             return null;
         }
 
-        if (Rule.isTypeName(context)){
+        if (Rule.isTypeName(context)) {
             return (Node) TypeName.parse(context);
         } else if (Rule.isThis(token)) {
             Node bn = new Node(SyntaxKind.THIS_EXPRESSION);
@@ -63,8 +63,8 @@ public class Primary implements Rule {
             bn.addChild(new Node(SyntaxKind.STRING, context.getToken()));
             return bn;
         } else if (Rule.isBad(token)) {
-            int start = context.lookAhead().start + context.lookAhead().leadingTriviaLength;
-            int end = context.lookAhead().end - context.lookAhead().trailingTriviaLength + 1;
+            int start = token.start + token.leadingTriviaLength;
+            int end = token.end - token.trailingTriviaLength + 1;
             Node bn = new Node(SyntaxKind.BAD, context.getToken());
             bn.addInvalidRange(
                     TextSpan.fromBounds(start, end),
@@ -76,32 +76,34 @@ public class Primary implements Rule {
         } else {
             return null;
         }
-
-
     }
 
     private static Node parseParensExpression(Context context) {
         Token openParen = context.getToken();
-        SyntaxNode expression = Expression.parse(context);
+        SyntaxNode innerExpression = Expression.parse(context);
         Token closeParen = null;
 
         if (Rule.isCloseParen(context.lookAhead())) {
             closeParen = context.getToken();
         }
 
-        Node parens = new Node(SyntaxKind.PARENTHESIZED_EXPRESSION);
-        parens.addChild(new Node(Symbol.OPEN_PAREN, openParen));
-        parens.addChild(expression);
+        Node parensExpression = new Node(SyntaxKind.PARENTHESIZED_EXPRESSION);
+        parensExpression.addChild(new Node(Symbol.OPEN_PAREN, openParen));
+        parensExpression.addChild(innerExpression);
         if (closeParen != null) {
-            parens.addChild(new Node(Symbol.CLOSE_PAREN, closeParen));
+            parensExpression.addChild(new Node(Symbol.CLOSE_PAREN, closeParen));
         } else {
-            parens.addChild(null);
-            parens.addInvalidRange(
-                    TextSpan.fromBounds(expression.lastTerminal().position(), expression.lastTerminal().position() + 1),
-                    "expected ') "
+            parensExpression.addInvalidRange(
+                    TextSpan.fromBounds(
+                            openParen.start,
+                            innerExpression != null ? innerExpression.lastTerminal().position() + 1 : openParen.end
+                    ),
+                    "Expected closing parenthesis"
             );
+            parensExpression.addChild(null);
         }
-        return parens;
+
+        return parensExpression;
     }
 
 

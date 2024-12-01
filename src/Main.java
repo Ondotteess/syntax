@@ -48,17 +48,17 @@ public class Main {
         //testLexer();
         testParser();
 
-        //String filePath = "test";
-        //MyParser parser = new MyParser();
-// ////
-        //try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
-        //    String content = Files.readString(Path.of(filePath));
-        //    ParseResult result = parser.parse(content);
-// ////
-        //    printTree(result.root());
-        //} catch (IOException e) {
-        //    System.out.println("cant open");
-        //}
+        // String filePath = "test";
+        // MyParser parser = new MyParser();
+// /////// 
+        // try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+        //                     String content = Files.readString(Path.of(filePath));
+        //                     ParseResult result = parser.parse(content);
+// /////// 
+        //                     printTree(result.root());
+        //                 } catch (IOException e) {
+        //                     System.out.println("cant open");
+        //                 }
 
 
     }

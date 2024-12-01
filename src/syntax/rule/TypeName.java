@@ -28,11 +28,45 @@ public class TypeName implements Rule {
             return null;
         }
 
-        if (isLess(context.lookAhead())) {
+        if (isLess(context.lookAhead()) &&
+                isValidGenericStart(context)) {
             return parseGeneric(context, typeName);
         }
 
         return typeName;
+    }
+
+    private static boolean isValidGenericStart(Context context) {
+        int initialPosition = context.getPosition();
+        context.getToken();
+
+        int angleBracketCount = 1;
+        while (angleBracketCount > 0) {
+            Token next = context.lookAhead();
+            if (next instanceof IdentifierToken) {
+                context.getToken();
+            } else if (next instanceof SymbolToken symbolToken) {
+                if (symbolToken.symbol.equals(Symbol.LESS_THAN)) {
+                    angleBracketCount++;
+                    context.getToken();
+                } else if (symbolToken.symbol.equals(Symbol.GREATER_THAN)) {
+                    angleBracketCount--;
+                    context.getToken();
+                } else if (symbolToken.symbol.equals(Symbol.GREATER_THAN_GREATER_THAN)) {
+                    angleBracketCount -= 2;
+                } else if (symbolToken.symbol.equals(Symbol.COMMA)) {
+                    context.getToken();
+                } else {
+                    context.setPosition(initialPosition);
+                    return false;
+                }
+            } else {
+                context.setPosition(initialPosition);
+                return false;
+            }
+        }
+        context.setPosition(initialPosition);
+        return true;
     }
 
     private static Node parseGeneric(Context context, Node baseTypeName) {

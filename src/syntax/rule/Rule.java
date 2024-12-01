@@ -38,34 +38,47 @@ public interface Rule {
             context.setPosition(initialPosition);
             return false;
         }
+
+        if (!(context.lookAhead() instanceof SymbolToken &&
+                ((SymbolToken) context.lookAhead()).symbol.equals(Symbol.LESS_THAN))) {
+            return true;
+        }
+
+
         context.getToken();
-        if (context.lookAhead() instanceof SymbolToken &&
-                ((SymbolToken) context.lookAhead()).symbol.equals(Symbol.LESS_THAN)) {
-            context.getToken();
-            if (!Rule.isIdentifier(context.lookAhead())) {
-                context.setPosition(initialPosition);
-                return false;
-            }
-            context.getToken();
 
-            while (context.lookAhead() instanceof SymbolToken &&
-                    ((SymbolToken) context.lookAhead()).symbol.equals(Symbol.COMMA)) {
+        int angleBracketCount = 1;
+
+        while (angleBracketCount > 0) {
+            Token next = context.lookAhead();
+
+            if (next instanceof IdentifierToken) {
                 context.getToken();
+            } else if (next instanceof SymbolToken symbolToken) {
 
-                if (!Rule.isIdentifier(context.lookAhead())) {
+                if (symbolToken.symbol.equals(Symbol.LESS_THAN)) {
+                    angleBracketCount++;
+                    context.getToken();
+                } else if (symbolToken.symbol.equals(Symbol.GREATER_THAN)) {
+                    angleBracketCount--;
+                    context.getToken();
+                } else if (symbolToken.symbol.equals(Symbol.COMMA)) {
+                    context.getToken();
+                } else {
                     context.setPosition(initialPosition);
                     return false;
                 }
-            }
-
-            if (!(context.lookAhead() instanceof SymbolToken &&
-                    ((SymbolToken) context.lookAhead()).symbol.equals(Symbol.GREATER_THAN))) {
+            } else {
                 context.setPosition(initialPosition);
                 return false;
             }
-            context.getToken();
         }
-        context.setPosition(initialPosition);
+
+        if (angleBracketCount != 0) {
+            context.setPosition(initialPosition);
+            return false;
+        }
+
         return true;
     }
 
@@ -271,5 +284,19 @@ public interface Rule {
 
     static boolean isIsOperator(Token token) {
         return (token instanceof KeywordToken && ((KeywordToken) token).keyword.equals(Keyword.IS));
+    }
+
+    static boolean isBitwiseOr(Token token) {
+        return (token instanceof SymbolToken && ((SymbolToken) token).symbol.equals(Symbol.BAR));
+    }
+
+    static boolean isBitwiseXor(Token token) {
+        return (token instanceof SymbolToken && ((SymbolToken) token).symbol.equals(Symbol.CARET));
+
+    }
+
+    static boolean isBitwiseAnd(Token token) {
+        return (token instanceof SymbolToken && ((SymbolToken) token).symbol.equals(Symbol.AMPERSAND));
+
     }
 }

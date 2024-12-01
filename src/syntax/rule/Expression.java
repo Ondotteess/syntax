@@ -5,6 +5,9 @@ import syntax.node.Node;
 import syspro.tm.lexer.*;
 import syspro.tm.parser.SyntaxKind;
 import syspro.tm.parser.SyntaxNode;
+import syspro.tm.parser.TextSpan;
+
+import java.util.List;
 
 public class Expression implements Rule {
 
@@ -17,65 +20,115 @@ public class Expression implements Rule {
         while (Rule.isLogicalOr(context.lookAhead())) {
             Token op = context.getToken();
             SyntaxNode right = parseLogicalAnd(context);
+            if (right == null) {
+                addErrorAndRecover(context, (Node) left, op, "Expected expression after '||'", List.of(Symbol.CLOSE_PAREN, Symbol.COMMA));
+                return left;
+            }
             left = combine(SyntaxKind.LOGICAL_OR_EXPRESSION, left, op, right);
         }
         return left;
     }
 
     private static SyntaxNode parseLogicalAnd(Context context) {
-        SyntaxNode left = parseEquality(context);
+        SyntaxNode left = parseBitwiseOr(context);
         while (Rule.isLogicalAnd(context.lookAhead())) {
-            SyntaxNode right = parseEquality(context);
             Token op = context.getToken();
+            SyntaxNode right = parseBitwiseOr(context);
+            if (right == null) {
+                addErrorAndRecover(context, (Node) left, op, "Expected expression after '&&'", List.of(Symbol.CLOSE_PAREN, Symbol.COMMA));
+                return left;
+            }
             left = combine(SyntaxKind.LOGICAL_AND_EXPRESSION, left, op, right);
+        }
+        return left;
+    }
+
+    private static SyntaxNode parseBitwiseOr(Context context) {
+        SyntaxNode left = parseBitwiseXor(context);
+        while (Rule.isBitwiseOr(context.lookAhead())) {
+            Token op = context.getToken();
+            SyntaxNode right = parseBitwiseXor(context);
+            if (right == null) {
+                addErrorAndRecover(context, (Node) left, op, "Expected expression after '|'", List.of(Symbol.CLOSE_PAREN, Symbol.COMMA));
+                return left;
+            }
+            left = combine(SyntaxKind.BITWISE_OR_EXPRESSION, left, op, right);
+        }
+        return left;
+    }
+
+    private static SyntaxNode parseBitwiseXor(Context context) {
+        SyntaxNode left = parseBitwiseAnd(context);
+        while (Rule.isBitwiseXor(context.lookAhead())) {
+            Token op = context.getToken();
+            SyntaxNode right = parseBitwiseAnd(context);
+            if (right == null) {
+                addErrorAndRecover(context, (Node) left, op, "Expected expression after '^'", List.of(Symbol.CLOSE_PAREN, Symbol.COMMA));
+                return left;
+            }
+            left = combine(SyntaxKind.BITWISE_EXCLUSIVE_OR_EXPRESSION, left, op, right);
+        }
+        return left;
+    }
+
+    private static SyntaxNode parseBitwiseAnd(Context context) {
+        SyntaxNode left = parseEquality(context);
+        while (Rule.isBitwiseAnd(context.lookAhead())) {
+            Token op = context.getToken();
+            SyntaxNode right = parseEquality(context);
+            if (right == null) {
+                addErrorAndRecover(context, (Node) left, op, "Expected expression after '&'", List.of(Symbol.CLOSE_PAREN, Symbol.COMMA));
+                return left;
+            }
+            left = combine(SyntaxKind.BITWISE_AND_EXPRESSION, left, op, right);
         }
         return left;
     }
 
     private static SyntaxNode parseEquality(Context context) {
         SyntaxNode left = parseRelational(context);
-
         while (true) {
             Token op = context.lookAhead();
             if (Rule.isEqualityOperator(op)) {
                 context.getToken();
                 SyntaxNode right = parseRelational(context);
+                if (right == null) {
+                    addErrorAndRecover(context, (Node) left, op, "Expected expression after equality operator", List.of(Symbol.CLOSE_PAREN, Symbol.COMMA));
+                    return left;
+                }
                 if (op instanceof SymbolToken && (((SymbolToken) op).symbol.equals(Symbol.EQUALS_EQUALS))) {
                     left = combine(SyntaxKind.EQUALS_EXPRESSION, left, op, right);
                 } else {
                     left = combine(SyntaxKind.NOT_EQUALS_EXPRESSION, left, op, right);
                 }
-            } else if (Rule.isIsOperator(op)) {
-                // is оператор
-                context.getToken();
-                SyntaxNode typeName = TypeName.parse(context);
-
-                SyntaxNode identifier = null;
-                if (context.lookAhead() instanceof IdentifierToken) {
-                    identifier = new Node(SyntaxKind.IDENTIFIER, context.getToken());
-                }
-
-                Node isExpression = new Node(SyntaxKind.IS_EXPRESSION);
-                isExpression.addChild(left);
-                isExpression.addChild(new Node(Keyword.IS, op));
-                isExpression.addChild(typeName);
-                if (identifier != null) {
-                    isExpression.addChild(identifier);
-                }
-                left = isExpression;
             } else {
                 break;
             }
         }
-
         return left;
     }
 
     private static SyntaxNode parseRelational(Context context) {
-        SyntaxNode left = parseBitwiseShift(context);
+        int initialPosition = context.getPosition();
+
+        if (isPotentialGeneric(context)) {
+            SyntaxNode prim = Primary.parse(context);
+            if (prim != null) {
+                return prim;
+            }
+            context.setPosition(initialPosition);
+        }
+
+        Node left = (Node) parseBitwiseShift(context);
         while (Rule.isRelationalOperator(context.lookAhead())) {
             Token operator = context.getToken();
             SyntaxNode right = parseBitwiseShift(context);
+
+            if (right == null) {
+                addErrorAndRecover(context, left, operator, "Expected expression after relational operator", List.of(Symbol.CLOSE_PAREN, Symbol.COMMA));
+                return left;
+            }
+
             SyntaxKind kind = switch (operator) {
                 case SymbolToken symbolToken when (symbolToken.symbol.equals(Symbol.LESS_THAN)) ->
                         SyntaxKind.LESS_THAN_EXPRESSION;
@@ -83,11 +136,13 @@ public class Expression implements Rule {
                         SyntaxKind.GREATER_THAN_EXPRESSION;
                 case SymbolToken symbolToken when (symbolToken.symbol.equals(Symbol.LESS_THAN_EQUALS)) ->
                         SyntaxKind.LESS_THAN_OR_EQUAL_EXPRESSION;
-                case null, default -> SyntaxKind.GREATER_THAN_OR_EQUAL_EXPRESSION;
+                case SymbolToken symbolToken when (symbolToken.symbol.equals(Symbol.GREATER_THAN_EQUALS)) ->
+                        SyntaxKind.GREATER_THAN_OR_EQUAL_EXPRESSION;
+                default -> null;
             };
-
             left = combine(kind, left, operator, right);
         }
+
         return left;
     }
 
@@ -96,6 +151,10 @@ public class Expression implements Rule {
         while (Rule.isBitwiseShiftOperator(context.lookAhead())) {
             Token operator = context.getToken();
             SyntaxNode right = parseAdditive(context);
+            if (right == null) {
+                addErrorAndRecover(context, (Node) left, operator, "Expected expression after bitwise shift operator", List.of(Symbol.CLOSE_PAREN, Symbol.COMMA));
+                return left;
+            }
             if (operator instanceof SymbolToken && ((SymbolToken) operator).symbol.equals(Symbol.LESS_THAN_LESS_THAN)) {
                 left = combine(SyntaxKind.BITWISE_LEFT_SHIFT_EXPRESSION, left, operator, right);
             } else {
@@ -110,6 +169,10 @@ public class Expression implements Rule {
         while (Rule.isAdditive(context.lookAhead())) {
             Token operator = context.getToken();
             SyntaxNode right = parseMultiplicative(context);
+            if (right == null) {
+                addErrorAndRecover(context, (Node) left, operator, "Expected expression after additive operator", List.of(Symbol.CLOSE_PAREN, Symbol.COMMA));
+                return left;
+            }
             if (operator instanceof SymbolToken && ((SymbolToken) operator).symbol.equals(Symbol.PLUS)) {
                 left = combine(SyntaxKind.ADD_EXPRESSION, left, operator, right);
             } else {
@@ -124,6 +187,10 @@ public class Expression implements Rule {
         while (Rule.isMultiplicative(context.lookAhead())) {
             Token operator = context.getToken();
             SyntaxNode right = parseUnary(context);
+            if (right == null) {
+                addErrorAndRecover(context, (Node) left, operator, "Expected expression after multiplicative operator", List.of(Symbol.CLOSE_PAREN, Symbol.COMMA));
+                return left;
+            }
             SyntaxKind kind = switch (operator) {
                 case SymbolToken symbolToken when (symbolToken.symbol.equals(Symbol.ASTERISK)) ->
                         SyntaxKind.MULTIPLY_EXPRESSION;
@@ -142,6 +209,14 @@ public class Expression implements Rule {
         if (Rule.isUnary(next)) {
             Token operator = context.getToken();
             SyntaxNode operand = Primary.parse(context);
+            if (operand == null) {
+                Node node = new Node(SyntaxKind.UNARY_MINUS_EXPRESSION);
+                node.addInvalidRange(
+                        TextSpan.fromBounds(operator.start, operator.end),
+                        "Expected operand after unary operator"
+                );
+                return node;
+            }
             SyntaxKind kind = switch (operator) {
                 case SymbolToken symbolToken when (symbolToken.symbol.equals(Symbol.PLUS)) ->
                         SyntaxKind.UNARY_PLUS_EXPRESSION;
@@ -161,6 +236,27 @@ public class Expression implements Rule {
         return Primary.parse(context);
     }
 
+    private static void addErrorAndRecover(Context context, Node left, Token operator, String errorMessage, List<Symbol> stopSymbols) {
+        left.addInvalidRange(TextSpan.fromBounds(operator.start, operator.end), errorMessage);
+        recover(context, stopSymbols);
+    }
+
+    private static void recover(Context context, List<Symbol> stopSymbols) {
+        int safePosition = context.getPosition();
+        while (context.lookAhead() != null) {
+            Token next = context.lookAhead();
+
+            if (next instanceof SymbolToken symbolToken && stopSymbols.contains(symbolToken.symbol)) {
+                break;
+            }
+
+            context.getToken();
+            safePosition = context.getPosition();
+        }
+
+        context.setPosition(safePosition);
+    }
+
     private static Node combine(SyntaxKind kind, SyntaxNode left, Token operator, SyntaxNode right) {
         Node node = new Node(kind);
         node.addChild(left);
@@ -174,5 +270,47 @@ public class Expression implements Rule {
         node.addChild(new Node(((SymbolToken) operator).symbol, operator));
         node.addChild(operand);
         return node;
+    }
+
+    private static boolean isPotentialGeneric(Context context) {
+        int initialPosition = context.getPosition();
+
+        if (!Rule.isTypeName(context)) {
+            context.setPosition(initialPosition);
+            return false;
+        }
+
+        if (!(context.lookAhead() instanceof SymbolToken token && token.symbol.equals(Symbol.LESS_THAN))) {
+            context.setPosition(initialPosition);
+            return false;
+        }
+
+        context.getToken();
+
+        int angleBracketCount = 1;
+        while (angleBracketCount > 0) {
+            Token next = context.lookAhead();
+            if (next instanceof IdentifierToken) {
+                context.getToken();
+            } else if (next instanceof SymbolToken symbolToken) {
+                if (symbolToken.symbol.equals(Symbol.LESS_THAN)) {
+                    angleBracketCount++;
+                    context.getToken();
+                } else if (symbolToken.symbol.equals(Symbol.GREATER_THAN)) {
+                    angleBracketCount--;
+                    context.getToken();
+                } else if (symbolToken.symbol.equals(Symbol.COMMA)) {
+                    context.getToken();
+                } else {
+                    context.setPosition(initialPosition);
+                    return false;
+                }
+            } else {
+                context.setPosition(initialPosition);
+                return false;
+            }
+        }
+
+        return true;
     }
 }

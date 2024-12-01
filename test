@@ -1,3 +1,15 @@
-object a
-  def b(n: Int64): Iterable<ArrayList<Boolean<Int32<Int64>>>>
-    var result = 1
+class c
+  def shift(n: Int32): Int32
+    if c < 2048u32
+      result.add((c >> 6u32) | 192u32)
+      result.add((c & 63u32) | 128u32)
+    else
+
+class a
+  def b(n: Boolean): Boolean
+    val res = ArrayList<ArrayList<Int64>>()
+
+class g
+  def f(n: Int32): Iterable<ArrayList<Int64<Float32<Boolean>>>>
+    x.add(16 > > 2)
+
