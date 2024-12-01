@@ -3,6 +3,16 @@ import syntax.MyParser;
 import syspro.tm.Tasks;
 import syspro.tm.WebServer;
 import syspro.tm.lexer.*;
+import syspro.tm.parser.ParseResult;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import static syntax.MyParser.printTree;
+
 public class Main {
 
     public static void testLexer(){
@@ -34,9 +44,21 @@ public class Main {
 
     public static void main(String[] args) {
 
+
         //testLexer();
         testParser();
 
+        //String filePath = "test";
+        //MyParser parser = new MyParser();
+// ////
+        //try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+        //    String content = Files.readString(Path.of(filePath));
+        //    ParseResult result = parser.parse(content);
+// ////
+        //    printTree(result.root());
+        //} catch (IOException e) {
+        //    System.out.println("cant open");
+        //}
 
 
     }

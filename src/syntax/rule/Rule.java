@@ -256,4 +256,20 @@ public interface Rule {
     static boolean isBad(Token token) {
         return token instanceof BadToken;
     }
+
+    static boolean isFor(Token token) {
+        return (token instanceof KeywordToken && ((KeywordToken) token).keyword.equals(Keyword.FOR));
+    }
+
+    static boolean isIn(Token token) {
+        return (token instanceof KeywordToken && ((KeywordToken) token).keyword.equals(Keyword.IN));
+    }
+
+    static boolean isWhile(Token token) {
+        return (token instanceof KeywordToken && ((KeywordToken) token).keyword.equals(Keyword.WHILE));
+    }
+
+    static boolean isIsOperator(Token token) {
+        return (token instanceof KeywordToken && ((KeywordToken) token).keyword.equals(Keyword.IS));
+    }
 }

@@ -13,7 +13,7 @@ public class MyLexer implements Lexer {
     @Override
     public List<Token> lex(String s) {
 
-        System.out.println(s);
+        //System.out.println(s);
         Head head = new Head(s);
         Context context = new Context();
         Tokenizer scanner = new Tokenizer(context);

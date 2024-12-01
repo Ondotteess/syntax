@@ -7,6 +7,7 @@ import syspro.tm.lexer.Symbol;
 import syspro.tm.lexer.Token;
 import syspro.tm.parser.SyntaxKind;
 import syspro.tm.parser.SyntaxNode;
+import syspro.tm.parser.TextSpan;
 
 public class Primary implements Rule {
 
@@ -62,11 +63,18 @@ public class Primary implements Rule {
             bn.addChild(new Node(SyntaxKind.STRING, context.getToken()));
             return bn;
         } else if (Rule.isBad(token)) {
-            return new Node(SyntaxKind.BAD, context.getToken());
+            int start = context.lookAhead().start + context.lookAhead().leadingTriviaLength;
+            int end = context.lookAhead().end - context.lookAhead().trailingTriviaLength + 1;
+            Node bn = new Node(SyntaxKind.BAD, context.getToken());
+            bn.addInvalidRange(
+                    TextSpan.fromBounds(start, end),
+                    "Invalid token"
+            );
+            return bn;
         } else if (Rule.isOpenParan(token)) {
             return parseParensExpression(context);
         } else {
-            return null;    //TODO: наверное invalid range надо оформить
+            return null;
         }
 
 
@@ -76,16 +84,23 @@ public class Primary implements Rule {
         Token openParen = context.getToken();
         SyntaxNode expression = Expression.parse(context);
         Token closeParen = null;
+
         if (Rule.isCloseParen(context.lookAhead())) {
             closeParen = context.getToken();
-        }else {
-            context.invalidRange();
         }
 
         Node parens = new Node(SyntaxKind.PARENTHESIZED_EXPRESSION);
         parens.addChild(new Node(Symbol.OPEN_PAREN, openParen));
         parens.addChild(expression);
-        parens.addChild(new Node(Symbol.CLOSE_PAREN, closeParen));
+        if (closeParen != null) {
+            parens.addChild(new Node(Symbol.CLOSE_PAREN, closeParen));
+        } else {
+            parens.addChild(null);
+            parens.addInvalidRange(
+                    TextSpan.fromBounds(expression.lastTerminal().position(), expression.lastTerminal().position() + 1),
+                    "expected ') "
+            );
+        }
         return parens;
     }
 
@@ -105,7 +120,7 @@ public class Primary implements Rule {
                 if (Rule.isIdentifier(context.lookAhead())) {
                     identifier = context.getToken();
                 } else {
-                    context.invalidRange();
+                    return null;
                 }
 
                 if (Rule.isOpenParan(context.lookAhead())) {
@@ -118,16 +133,17 @@ public class Primary implements Rule {
                     invocation.addChild(mem_access);
                     if (Rule.isOpenParan(context.lookAhead())){
                         invocation.addChild(new Node(Symbol.OPEN_PAREN, context.getToken()));
-                    } else {
-                        invocation.addChild(null);
                     }
 
-                    invocation.addChild(
-                            parseArguments(context));
+                    invocation.addChild(parseArguments(context));
 
                     if (Rule.isCloseParen(context.lookAhead())){
                         invocation.addChild(new Node(Symbol.CLOSE_PAREN, context.getToken()));
                     } else {
+                        invocation.addInvalidRange(
+                                TextSpan.fromBounds(invocation.lastTerminal().position(), invocation.lastTerminal().position() + 1),
+                                "expected ') "
+                        );
                         invocation.addChild(null);
                     }
                     base = invocation;
@@ -145,33 +161,38 @@ public class Primary implements Rule {
                 SyntaxNode indexExpression = Expression.parse(context);
                 if (Rule.isCloseBracket(context.lookAhead())) {
                     closeBrack = context.getToken();
-                } else {
-                    context.invalidRange();
                 }
+
                 Node indexAccess = new Node(SyntaxKind.INDEX_EXPRESSION);
                 indexAccess.addChild(base);
                 indexAccess.addChild(new Node(Symbol.OPEN_BRACKET, opBrack));
                 indexAccess.addChild(indexExpression);
                 indexAccess.addChild(new Node(Symbol.CLOSE_PAREN, closeBrack));
+
+                if (closeBrack == null) {
+                    indexAccess.addInvalidRange(
+                            TextSpan.fromBounds(indexAccess.lastTerminal().position(), indexAccess.lastTerminal().position() + 1),
+                            "expected '] "
+                    );
+                }
                 base = indexAccess;
 
             } else if (Rule.isOpenParan(next)) {
                 // это invocation без member access
-                // TODO: копипасту убрать
                 Node invocation = new Node(SyntaxKind.INVOCATION_EXPRESSION);
                 invocation.addChild(base);
 
-                if (Rule.isOpenParan(context.lookAhead())){
-                    invocation.addChild(new Node(Symbol.OPEN_PAREN, context.getToken()));
-                } else {
-                    invocation.addChild(null);
-                }
+                invocation.addChild(new Node(Symbol.OPEN_PAREN, context.getToken()));
 
                 invocation.addChild(parseArguments(context));
 
                 if (Rule.isCloseParen(context.lookAhead())){
                     invocation.addChild(new Node(Symbol.CLOSE_PAREN, context.getToken()));
                 } else {
+                    invocation.addInvalidRange(
+                            TextSpan.fromBounds(invocation.lastTerminal().position(), invocation.lastTerminal().position() + 1),
+                            "expected ') "
+                    );
                     invocation.addChild(null);
                 }
                 base = invocation;
@@ -198,8 +219,10 @@ public class Primary implements Rule {
                     arguments.addChild(new Node(Symbol.COMMA, comma));
                     arguments.addChild(nextArgument);
                 } else {
-                    context.invalidRange();
-
+                    arguments.addInvalidRange(
+                            TextSpan.fromBounds(context.getPosition(), context.getPosition() + 1),
+                            "Expected a expression after ','"
+                    );
 
                 }
             }

@@ -6,32 +6,43 @@ import syspro.tm.lexer.Keyword;
 import syspro.tm.parser.SyntaxKind;
 import syspro.tm.parser.SyntaxNode;
 
-public class ForStatement implements Rule{
+public class ForStatement implements Rule {
 
-    public static SyntaxNode parse(Context context){
 
-        Node for_stmnt = new Node(SyntaxKind.FOR_STATEMENT);
+    public static SyntaxNode parse(Context context) {
 
-        SyntaxNode for_key = new Node(Keyword.FOR, context.getToken());
+        Node for_stmt = new Node(SyntaxKind.FOR_STATEMENT);
+
+        SyntaxNode for_keyword = Rule.isFor(context.lookAhead())
+                ? new Node(Keyword.FOR, context.getToken())
+                : null;
+
         SyntaxNode for_primary = Primary.parse(context);
-        SyntaxNode in = new Node(Keyword.IN, context.getToken());
-        SyntaxNode for_expr = Expression.parse(context);
-        SyntaxNode indent = new Node(SyntaxKind.INDENT, context.getToken());
+
+        SyntaxNode in_keyword = Rule.isIn(context.lookAhead())
+                ? new Node(Keyword.IN, context.getToken())
+                : null;
+
+        SyntaxNode for_expression = Expression.parse(context);
+
+        SyntaxNode indent = Rule.isIndent(context.lookAhead())
+                ? new Node(SyntaxKind.INDENT, context.getToken())
+                : null;
+
         SyntaxNode statement_block = StatementBlock.parse(context);
-        SyntaxNode dedent = new Node(SyntaxKind.DEDENT, context.getToken());
 
-        // TODO: тут null может быть везде
+        SyntaxNode dedent = Rule.isDedent(context.lookAhead())
+                ? new Node(SyntaxKind.DEDENT, context.getToken())
+                : null;
 
-        for_stmnt.addChild(for_key);
-        for_stmnt.addChild(for_primary);
-        for_stmnt.addChild(in);
-        for_stmnt.addChild(for_expr);
-        for_stmnt.addChild(indent);
-        for_stmnt.addChild(statement_block);
-        for_stmnt.addChild(dedent);
+        for_stmt.addChild(for_keyword);
+        for_stmt.addChild(for_primary);
+        for_stmt.addChild(in_keyword);
+        for_stmt.addChild(for_expression);
+        for_stmt.addChild(indent);
+        for_stmt.addChild(statement_block);
+        for_stmt.addChild(dedent);
 
-        return for_stmnt;
-
+        return for_stmt;
     }
-
 }

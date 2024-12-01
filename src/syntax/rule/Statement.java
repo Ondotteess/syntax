@@ -31,15 +31,15 @@ public class Statement implements Rule {
             return AssignmentStatement.parse(context);
         }
         context.setPosition(current_position);
+
+
         SyntaxNode expression = Expression.parse(context);
         if (expression != null) {
             Node expr_stmnt = new Node(SyntaxKind.EXPRESSION_STATEMENT);
-            // унести в класс
             expr_stmnt.addChild(expression);
             return expr_stmnt;
         }
 
-        context.invalidRange();
         return null;
     }
 

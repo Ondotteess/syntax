@@ -21,69 +21,101 @@ public class TypeName implements Rule {
             typeName = new Node(SyntaxKind.IDENTIFIER_NAME_EXPRESSION);
         }
 
-        Token a;        // TODO: как нибудь поумнее
         if (context.lookAhead() instanceof IdentifierToken) {
-            a = context.lookAhead();
-            typeName.addChild(new Node(SyntaxKind.IDENTIFIER, context.getToken()));
+            Token identifier = context.getToken();
+            typeName.addChild(new Node(SyntaxKind.IDENTIFIER, identifier));
         } else {
-            context.invalidRange();
             return null;
         }
 
         if (isLess(context.lookAhead())) {
-            Node genericTypeName = new Node(SyntaxKind.GENERIC_NAME_EXPRESSION);
-            genericTypeName.addChild(new Node(SyntaxKind.IDENTIFIER, a));
-
-            genericTypeName.addChild(new Node(Symbol.LESS_THAN, context.getToken()));
-            Node inner = new Node(SyntaxKind.SEPARATED_LIST);
-            if (Rule.isIdentifier(context.lookAhead())) {
-                inner.addChild(TypeName.parse(context));
-
-                while (isComma(context.lookAhead())) {
-                    inner.addChild(new Node(Symbol.COMMA, context.getToken()));
-
-                    SyntaxNode nextTypeParam = TypeName.parse(context);
-                    if (nextTypeParam != null) {
-                        inner.addChild(nextTypeParam);
-                    } else {
-                        context.invalidRange();
-                        return null;
-                    }
-                }
-                genericTypeName.addChild(inner);
-            } else {
-                context.invalidRange();
-                return null;
-            }
-            if (isGreater(context.lookAhead())) {
-                genericTypeName.addChild(new Node(Symbol.GREATER_THAN, context.getToken()));
-            } else {
-                context.invalidRange();
-                return null;
-            }
-            return genericTypeName;
+            return parseGeneric(context, typeName);
         }
+
         return typeName;
     }
 
-    private static boolean isQuestionMark(Token token){
-        return (token instanceof SymbolToken && ((SymbolToken) token).symbol.equals(Symbol.QUESTION));
+    private static Node parseGeneric(Context context, Node baseTypeName) {
+        Node genericTypeName = new Node(SyntaxKind.GENERIC_NAME_EXPRESSION);
+        if (baseTypeName.kind().equals(SyntaxKind.IDENTIFIER_NAME_EXPRESSION)) {
+            SyntaxNode one = baseTypeName.slot(0);
+            genericTypeName.addChild(one);
+        }
+        genericTypeName.addChild(new Node(Symbol.LESS_THAN, context.getToken()));
+
+        Node separatedList = new Node(SyntaxKind.SEPARATED_LIST);
+
+        SyntaxNode typeArgument = parse(context);
+        if (typeArgument != null) {
+            separatedList.addChild(typeArgument);
+
+            while (isComma(context.lookAhead())) {
+                separatedList.addChild(new Node(Symbol.COMMA, context.getToken()));
+                typeArgument = parse(context);
+                if (typeArgument != null) {
+                    separatedList.addChild(typeArgument);
+                } else {
+                    return null;
+                }
+            }
+        } else {
+            return null;
+        }
+
+        genericTypeName.addChild(separatedList);
+
+        Token next = context.lookAhead();
+        if (isGreater(next)) {
+            genericTypeName.addChild(new Node(Symbol.GREATER_THAN, context.getToken()));
+        } else if (isDoubleGreater(next)) {
+            genericTypeName.addChild(new Node(Symbol.GREATER_THAN, splitDoubleGreater(context)));
+            context.setPosition(context.getPosition() - 1);
+        } else {
+            return null;
+        }
+
+        return genericTypeName;
     }
 
-    private static boolean isComma(Token token) {
-        return (token instanceof SymbolToken &&
-                ((SymbolToken) token).symbol.equals(Symbol.COMMA));
+    private static boolean isQuestionMark(Token token) {
+        return token instanceof SymbolToken && ((SymbolToken) token).symbol.equals(Symbol.QUESTION);
     }
 
     private static boolean isLess(Token token) {
-        return (token instanceof SymbolToken &&
-                ((SymbolToken) token).symbol.equals(Symbol.LESS_THAN));
+        return token instanceof SymbolToken && ((SymbolToken) token).symbol.equals(Symbol.LESS_THAN);
     }
 
     private static boolean isGreater(Token token) {
-        return (token instanceof SymbolToken &&
-                ((SymbolToken) token).symbol.equals(Symbol.GREATER_THAN));
+        return token instanceof SymbolToken && ((SymbolToken) token).symbol.equals(Symbol.GREATER_THAN);
     }
 
+    private static boolean isComma(Token token) {
+        return token instanceof SymbolToken && ((SymbolToken) token).symbol.equals(Symbol.COMMA);
+    }
 
+    private static boolean isDoubleGreater(Token token) {
+        return token instanceof SymbolToken && ((SymbolToken) token).symbol.equals(Symbol.GREATER_THAN_GREATER_THAN);
+    }
+
+    private static Token splitDoubleGreater(Context context) {
+        Token doubleGreater = context.getToken();
+        SymbolToken firstGreater = new SymbolToken(
+                doubleGreater.start,
+                doubleGreater.start + 1,
+                doubleGreater.leadingTriviaLength,
+                0,
+                Symbol.GREATER_THAN
+        );
+        SymbolToken secondGreater = new SymbolToken(
+                doubleGreater.start + 1,
+                doubleGreater.end,
+                0,
+                doubleGreater.trailingTriviaLength,
+                Symbol.GREATER_THAN
+        );
+
+        context.insertTokenAtCurrent(secondGreater);
+        context.setPosition(context.getPosition() + 1);
+        return firstGreater;
+    }
 }

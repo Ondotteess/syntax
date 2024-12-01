@@ -26,7 +26,6 @@ public class TypeDef implements Rule {
         if (Rule.isContextual(keyword)) {
             _keyword = new Node(((IdentifierToken) keyword).contextualKeyword, toKeyword((IdentifierToken) keyword));
         } else {
-            context.invalidRange();
             return null;
         }
         typeDef.addChild(_keyword);
@@ -35,7 +34,7 @@ public class TypeDef implements Rule {
         if (Rule.isIdentifier(identifier)) {
             _ident = new Node(SyntaxKind.IDENTIFIER, identifier);
         } else {
-            context.invalidRange();
+            return null;
         }
         typeDef.addChild(_ident);
 
@@ -67,11 +66,10 @@ public class TypeDef implements Rule {
         memberBlock = MemberBlock.parse(context);
 
         memberBlock = indent != null ? memberBlock : null;
-        //TODO: задиагностировать
 
         typeDef.addChild(memberBlock);
 
-        if (Rule.isDedent(context.lookAhead())) {
+        if (Rule.isDedent(context.lookAhead()) && indent != null && memberBlock != null) {
             dedent = new Node(SyntaxKind.DEDENT, context.getToken());
         }
 
@@ -82,7 +80,7 @@ public class TypeDef implements Rule {
     }
 
     private static KeywordToken toKeyword(IdentifierToken keyword) {
-        return new KeywordToken(        // TODO: куда нибудь унести
+        return new KeywordToken(
                 keyword.start,
                 keyword.end,
                 keyword.leadingTriviaLength,

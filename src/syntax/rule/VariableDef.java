@@ -30,7 +30,6 @@ public class VariableDef implements Rule {
             );
 
         } else {
-            context.invalidRange();
             return null;
         }
 
@@ -38,7 +37,6 @@ public class VariableDef implements Rule {
         if (context.lookAhead() instanceof IdentifierToken) {
             variableDef.addChild(new Node(SyntaxKind.IDENTIFIER, context.getToken()));
         } else {
-            context.invalidRange();
             return null;
         }
 

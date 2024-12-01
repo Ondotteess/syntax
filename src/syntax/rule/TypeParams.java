@@ -6,6 +6,7 @@ import syspro.tm.lexer.Symbol;
 import syspro.tm.lexer.SymbolToken;
 import syspro.tm.parser.SyntaxKind;
 import syspro.tm.parser.SyntaxNode;
+import syspro.tm.parser.TextSpan;
 
 public class TypeParams implements Rule {
 
@@ -39,7 +40,10 @@ public class TypeParams implements Rule {
                     typeParamList.addChild(nextTypeParam);
                     paramCount++;
                 } else {
-                    context.invalidRange();
+                    typeParamList.addInvalidRange(
+                            TextSpan.fromBounds(context.getPosition(), context.getPosition() + 1),
+                            "Expected a expression after ','"
+                    );
                 }
             }
 

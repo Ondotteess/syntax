@@ -16,7 +16,6 @@ public class TypeBound implements Rule {
 
         SyntaxNode firstType = TypeName.parse(context);
         if (firstType == null) {
-            context.invalidRange();
             return null;
         }
         list.addChild(firstType);
@@ -24,7 +23,6 @@ public class TypeBound implements Rule {
             list.addChild(new Node(Symbol.AMPERSAND, context.getToken()));
             SyntaxNode nextType = TypeName.parse(context);
             if (nextType == null) {
-                context.invalidRange();
                 return null;
             }
             list.addChild(nextType);

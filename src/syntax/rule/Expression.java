@@ -2,9 +2,7 @@ package syntax.rule;
 
 import syntax.Context;
 import syntax.node.Node;
-import syspro.tm.lexer.Symbol;
-import syspro.tm.lexer.SymbolToken;
-import syspro.tm.lexer.Token;
+import syspro.tm.lexer.*;
 import syspro.tm.parser.SyntaxKind;
 import syspro.tm.parser.SyntaxNode;
 
@@ -36,33 +34,44 @@ public class Expression implements Rule {
 
     private static SyntaxNode parseEquality(Context context) {
         SyntaxNode left = parseRelational(context);
-        while (Rule.isEqualityOperator(context.lookAhead())) {
-            Token op = context.getToken();
-            SyntaxNode right = parseRelational(context);
-            if (op instanceof SymbolToken && (((SymbolToken) op).symbol.equals(Symbol.EQUALS_EQUALS))) {
-                left = combine(SyntaxKind.EQUALS_EXPRESSION, left, op, right);
+
+        while (true) {
+            Token op = context.lookAhead();
+            if (Rule.isEqualityOperator(op)) {
+                context.getToken();
+                SyntaxNode right = parseRelational(context);
+                if (op instanceof SymbolToken && (((SymbolToken) op).symbol.equals(Symbol.EQUALS_EQUALS))) {
+                    left = combine(SyntaxKind.EQUALS_EXPRESSION, left, op, right);
+                } else {
+                    left = combine(SyntaxKind.NOT_EQUALS_EXPRESSION, left, op, right);
+                }
+            } else if (Rule.isIsOperator(op)) {
+                // is оператор
+                context.getToken();
+                SyntaxNode typeName = TypeName.parse(context);
+
+                SyntaxNode identifier = null;
+                if (context.lookAhead() instanceof IdentifierToken) {
+                    identifier = new Node(SyntaxKind.IDENTIFIER, context.getToken());
+                }
+
+                Node isExpression = new Node(SyntaxKind.IS_EXPRESSION);
+                isExpression.addChild(left);
+                isExpression.addChild(new Node(Keyword.IS, op));
+                isExpression.addChild(typeName);
+                if (identifier != null) {
+                    isExpression.addChild(identifier);
+                }
+                left = isExpression;
             } else {
-                left = combine(SyntaxKind.NOT_EQUALS_EXPRESSION, left, op, right);
+                break;
             }
         }
+
         return left;
     }
 
     private static SyntaxNode parseRelational(Context context) {
-        int initialPosition = context.getPosition();
-        // тут может быть параметризованный тип
-        // еще через один посмотреть и решить
-        Token token = context.lookAhead();
-        Token token1 = context.lookAhead(1);
-
-        if (Rule.isTypeName(context) && Rule.isLessThan(token1)) {
-            SyntaxNode prim = Primary.parse(context);
-            if (prim != null) {
-                return prim;    // TODO: сделать поумнее
-            }
-            context.setPosition(initialPosition);
-        }
-
         SyntaxNode left = parseBitwiseShift(context);
         while (Rule.isRelationalOperator(context.lookAhead())) {
             Token operator = context.getToken();
@@ -91,7 +100,8 @@ public class Expression implements Rule {
                 left = combine(SyntaxKind.BITWISE_LEFT_SHIFT_EXPRESSION, left, operator, right);
             } else {
                 left = combine(SyntaxKind.BITWISE_RIGHT_SHIFT_EXPRESSION, left, operator, right);
-            }       }
+            }
+        }
         return left;
     }
 
@@ -100,7 +110,7 @@ public class Expression implements Rule {
         while (Rule.isAdditive(context.lookAhead())) {
             Token operator = context.getToken();
             SyntaxNode right = parseMultiplicative(context);
-            if (operator instanceof SymbolToken && ((SymbolToken) operator).symbol.equals(Symbol.PLUS)){
+            if (operator instanceof SymbolToken && ((SymbolToken) operator).symbol.equals(Symbol.PLUS)) {
                 left = combine(SyntaxKind.ADD_EXPRESSION, left, operator, right);
             } else {
                 left = combine(SyntaxKind.SUBTRACT_EXPRESSION, left, operator, right);

@@ -1,0 +1,3 @@
+object a
+  def b(n: Int64): Iterable<ArrayList<Boolean<Int32<Int64>>>>
+    var result = 1

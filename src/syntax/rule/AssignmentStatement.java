@@ -13,9 +13,7 @@ public class AssignmentStatement {
         Node left = (Node) Primary.parse(context);
         Token equals = context.getToken();
         SyntaxNode right = Expression.parse(context);
-        if (right == null) {
-            context.invalidRange();
-        }
+
         assignment.addChild(left);
         assignment.addChild(new Node(SyntaxKind.EQUALS_EXPRESSION, equals));
         assignment.addChild(right);

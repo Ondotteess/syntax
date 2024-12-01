@@ -5,27 +5,50 @@ import syntax.node.Node;
 import syspro.tm.lexer.Keyword;
 import syspro.tm.parser.SyntaxKind;
 import syspro.tm.parser.SyntaxNode;
+import syspro.tm.parser.TextSpan;
 
 public class WhileStatement implements Rule {
 
-    public static SyntaxNode parse(Context context){
-        Node while_stmnt = new Node(SyntaxKind.WHILE_STATEMENT);
+    public static SyntaxNode parse(Context context) {
+        Node while_stmt = new Node(SyntaxKind.WHILE_STATEMENT);
 
-        SyntaxNode while_keyword = new Node(Keyword.WHILE, context.getToken());
-        SyntaxNode expression = Expression.parse(context);
-        SyntaxNode indent = new Node(SyntaxKind.INDENT, context.getToken());
-        SyntaxNode stmt_block = StatementBlock.parse(context);
-        SyntaxNode dedent = new Node(SyntaxKind.DEDENT, context.getToken());
+        SyntaxNode while_keyword = Rule.isWhile(context.lookAhead())
+                ? new Node(Keyword.WHILE, context.getToken())
+                : null;
 
-        // TODO: тут все вполне может поломаться
+        SyntaxNode condition = Expression.parse(context);
 
-        while_stmnt.addChild(while_keyword);
-        while_stmnt.addChild(expression);
-        while_stmnt.addChild(indent);
-        while_stmnt.addChild(stmt_block);
-        while_stmnt.addChild(dedent);
+        SyntaxNode indent = Rule.isIndent(context.lookAhead())
+                ? new Node(SyntaxKind.INDENT, context.getToken())
+                : null;
 
-        return while_stmnt;
+        SyntaxNode statement_block = StatementBlock.parse(context);
+
+        SyntaxNode dedent = Rule.isDedent(context.lookAhead())
+                ? new Node(SyntaxKind.DEDENT, context.getToken())
+                : null;
+
+        while_stmt.addChild(while_keyword);
+        while_stmt.addChild(condition);
+        while_stmt.addChild(indent);
+        while_stmt.addChild(statement_block);
+        while_stmt.addChild(dedent);
+
+
+        if (condition == null) {
+            while_stmt.addInvalidRange(
+                    TextSpan.fromBounds(context.getPosition(), context.getPosition() + 1),
+                    "expected condition after while"
+            );
+        }
+
+        if (indent == null || statement_block == null || dedent == null) {
+            while_stmt.addInvalidRange(
+                    TextSpan.fromBounds(context.getPosition(), context.getPosition() + 1),
+                    "expected stetement block"
+            );
+        }
+
+        return while_stmt;
     }
-
 }

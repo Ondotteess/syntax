@@ -2,15 +2,16 @@ package syntax.node;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import syntax.code.Code;
 import syspro.tm.lexer.Token;
-import syspro.tm.parser.AnySyntaxKind;
-import syspro.tm.parser.SyntaxKind;
-import syspro.tm.parser.SyntaxNode;
+import syspro.tm.parser.*;
 
 public class Node implements SyntaxNode {
     private final AnySyntaxKind kind;
     private final Token token;
     private final List<SyntaxNode> children;
+    private final List<Diagnostic> diagnostics;
 
     public Node(SyntaxKind kind) {
         this(kind, null);
@@ -20,10 +21,20 @@ public class Node implements SyntaxNode {
         this.kind = kind;
         this.token = token;
         this.children = new ArrayList<>();
+        this.diagnostics = new ArrayList<>();
     }
 
     public void addChild(SyntaxNode child) {
         children.add(child);
+    }
+
+    public void addInvalidRange(TextSpan span, String message) {
+        Diagnostic diagnostic = new Diagnostic(
+                new DiagnosticInfo(Code.SYNTAX, new Object[]{message}),
+                span,
+                List.of()
+        );
+        diagnostics.add(diagnostic);
     }
 
     @Override
@@ -49,5 +60,13 @@ public class Node implements SyntaxNode {
         return token;
     }
 
-
+    public List<Diagnostic> collectDiagnostics() {
+        List<Diagnostic> allDiagnostics = new ArrayList<>(diagnostics);
+        for (SyntaxNode child : children) {
+            if (child instanceof Node) {
+                allDiagnostics.addAll(((Node) child).collectDiagnostics());
+            }
+        }
+        return allDiagnostics;
+    }
 }

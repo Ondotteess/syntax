@@ -5,6 +5,7 @@ import syntax.node.Node;
 import syspro.tm.lexer.*;
 import syspro.tm.parser.SyntaxKind;
 import syspro.tm.parser.SyntaxNode;
+import syspro.tm.parser.TextSpan;
 
 public class FunctionDef implements Rule {
 
@@ -40,8 +41,9 @@ public class FunctionDef implements Rule {
 
         if (Rule.isDef(context.lookAhead())) {
             functionDef.addChild(new Node(Keyword.DEF, context.getToken()));
+        } else if (Rule.isThis(context.lookAhead())) {
+            functionDef.addChild(new Node(Keyword.THIS, context.getToken()));
         } else {
-            context.invalidRange();
             return null;
         }
 
@@ -49,7 +51,6 @@ public class FunctionDef implements Rule {
         if (Rule.isName(context.lookAhead())) {
             functionDef.addChild(new Node(SyntaxKind.IDENTIFIER, context.getToken()));
         } else {
-            context.invalidRange();
             return null;
         }
 
@@ -60,8 +61,11 @@ public class FunctionDef implements Rule {
             if (Rule.isCloseParen(context.lookAhead())) {
                 functionDef.addChild(new Node(Symbol.CLOSE_PAREN, context.getToken()));
             } else {
+                functionDef.addInvalidRange(
+                        TextSpan.fromBounds(context.getPosition(), context.getPosition() + 1),
+                        "Expected ')' "
+                );
                 functionDef.addChild(null);
-                context.invalidRange();
             }
         }
 
@@ -93,8 +97,6 @@ public class FunctionDef implements Rule {
             }
             dedent = new Node(SyntaxKind.DEDENT, context.getToken());
         } else if (indent != null && !Rule.isDedent(context.lookAhead())) {
-            // что то не так
-            // или дедент забыли или stmt_block не так разобрали
             indent = null;
             stblc = null;
             while (!(Rule.isDedent(context.lookAhead()))) {
@@ -123,7 +125,10 @@ public class FunctionDef implements Rule {
                 if (nextParam != null) {
                     paramList.addChild(nextParam);
                 } else {
-                    context.invalidRange();
+                    paramList.addInvalidRange(
+                            TextSpan.fromBounds(param.lastTerminal().position() , paramList.lastTerminal().position() + 1),
+                            "Expected a expression after ','"
+                    );
                 }
             }
         }
