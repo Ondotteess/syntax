@@ -10,15 +10,15 @@ public class TypeDef implements Rule {
 
     public static SyntaxNode parse(Context context) {
 
-        SyntaxNode _keyword = null;
-        SyntaxNode _ident = null;
-        SyntaxNode lessThan = null;
-        SyntaxNode typeParam = null;
-        SyntaxNode greaterThan = null;
-        SyntaxNode typeBound = null;
-        SyntaxNode indent = null;
-        SyntaxNode memberBlock = null;
-        SyntaxNode dedent = null;
+        SyntaxNode _keyword = null;         // 0
+        SyntaxNode _ident = null;           // 1
+        SyntaxNode lessThan = null;         // 2
+        SyntaxNode typeParam = null;        // 3
+        SyntaxNode greaterThan = null;      // 4
+        SyntaxNode typeBound = null;        // 5
+        SyntaxNode indent = null;           // 6
+        SyntaxNode memberBlock = null;      // 7
+        SyntaxNode dedent = null;           // 8
 
         Node typeDef = new Node(SyntaxKind.TYPE_DEFINITION);
 

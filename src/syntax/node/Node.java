@@ -10,7 +10,7 @@ import syspro.tm.parser.*;
 public class Node implements SyntaxNode {
     private final AnySyntaxKind kind;
     private final Token token;
-    private final List<SyntaxNode> children;
+    private final ArrayList<SyntaxNode> children;
     private final List<Diagnostic> diagnostics;
 
     public Node(SyntaxKind kind) {
@@ -26,6 +26,10 @@ public class Node implements SyntaxNode {
 
     public void addChild(SyntaxNode child) {
         children.add(child);
+    }
+
+    public List<SyntaxNode> getChildren(){
+        return children;
     }
 
     public void addInvalidRange(TextSpan span, String message) {
