@@ -49,6 +49,6 @@ class SemanticModelImpl implements SemanticModel {
 
     @Override
     public TypeSymbol lookupType(String name) {
-        return  null; // typeMap.get(name);
+        return typeMap.get(name);
     }
 }

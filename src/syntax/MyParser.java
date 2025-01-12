@@ -54,6 +54,8 @@ public class MyParser implements syspro.tm.parser.Parser {
 
         SyntaxNode root = SourceText.parse(util);
 
+
+
         //System.out.println(tokens);
 
         List<Diagnostic> diagnostics = new ArrayList<>();
