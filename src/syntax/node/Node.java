@@ -1,9 +1,6 @@
 package syntax.node;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import syntax.code.Code;
 import syntax.node.symbol.*;
@@ -20,6 +17,7 @@ public class Node implements SyntaxNodeWithSymbols {
     public List<Diagnostic> diagnostics;
     public Map<String, List<SemanticSymbol>> localSymbolTable = new HashMap<>();
     public SemanticSymbol cachedSymbol;
+    public BuiltInTypes builtInTypes;
 
     public SemanticSymbol symbol;
 
@@ -43,6 +41,7 @@ public class Node implements SyntaxNodeWithSymbols {
     }
 
     public Node(AnySyntaxKind kind, Token token) {
+        this.builtInTypes = new BuiltInTypes();
         this.kind = kind;
         this.token = token;
         this.children = new ArrayList<>();
@@ -50,6 +49,65 @@ public class Node implements SyntaxNodeWithSymbols {
         if (kind instanceof SyntaxKind && ((SyntaxKind) kind).equals(SyntaxKind.TYPE_DEFINITION)) {
             type = this;
         }
+        fillBuiltIn();
+    }
+
+    private void fillBuiltIn() {
+        localSymbolTable.put("Int32", createBuiltInType("Int32"));
+        localSymbolTable.put("Int64", createBuiltInType("Int64"));
+        localSymbolTable.put("UInt32", createBuiltInType("UInt32"));
+        localSymbolTable.put("UInt64", createBuiltInType("UInt64"));
+        localSymbolTable.put("Boolean", createBuiltInType("Boolean"));
+        localSymbolTable.put("Rune", createBuiltInType("Rune"));
+    }
+
+    List<SemanticSymbol> createBuiltInType(String name) {
+        return Collections.singletonList(new TypeSymbol() {
+            @Override
+            public boolean isAbstract() {
+                return false;
+            }
+
+            @Override
+            public List<? extends TypeSymbol> baseTypes() {
+                return List.of();
+            }
+
+            @Override
+            public List<? extends TypeLikeSymbol> typeArguments() {
+                return List.of();
+            }
+
+            @Override
+            public TypeSymbol originalDefinition() {
+                return null;
+            }
+
+            @Override
+            public TypeSymbol construct(List<? extends TypeLikeSymbol> list) {
+                return null;
+            }
+
+            @Override
+            public List<? extends MemberSymbol> members() {
+                return List.of();
+            }
+
+            @Override
+            public SymbolKind kind() {
+                return null;
+            }
+
+            @Override
+            public String name() {
+                return name;
+            }
+
+            @Override
+            public SyntaxNode definition() {
+                return null;
+            }
+        });
     }
 
     public Node(Node node){
@@ -72,7 +130,17 @@ public class Node implements SyntaxNodeWithSymbols {
 
     public List<SemanticSymbol> getSymbols(String name) {
 
-        return localSymbolTable.getOrDefault(name, List.of());
+        List<SemanticSymbol> symbols = localSymbolTable.getOrDefault(name, List.of());
+        if (!symbols.isEmpty()) {
+            return symbols;
+        }
+
+        TypeSymbol builtInType = builtInTypes.get(name);
+        if (builtInType != null) {
+            return List.of(builtInType);
+        }
+
+        return List.of();
     }
 
     public boolean isDuplicate(String name, SemanticSymbol symbol) {
@@ -259,7 +327,7 @@ public class Node implements SyntaxNodeWithSymbols {
     }
 
 
-    public SemanticSymbol createFunctionSymbol(TypeSymbol owner) {
+    public SemanticSymbol createFunctionSymbol(TypeSymbol owner, List<TypeParameterSymbol> typeParams) {
         SyntaxNode nameNode = children.size() > 2 ? children.get(2) : null;
 
         if (nameNode == null || nameNode.token() == null) {
@@ -276,11 +344,21 @@ public class Node implements SyntaxNodeWithSymbols {
 
         if (returnTypeNode instanceof SyntaxNodeWithSymbols nodeWithSymbols) {
             returnType = (TypeLikeSymbol) nodeWithSymbols.symbol();
+            if (returnTypeNode.kind() == SyntaxKind.GENERIC_NAME_EXPRESSION) {
+                GenericNameExpressionProcessor pr = new GenericNameExpressionProcessor();
+                returnType = (TypeLikeSymbol) pr.processSymbol((Node) returnTypeNode);
+            }
         }
 
         if (returnType == null && returnTypeNode != null) {
             String typeName = returnTypeNode.slot(0).token().toString();
             returnType = resolveTypeFromDefinitions(typeName);
+        }
+
+        if (functionName.equals("this")) {
+
+            returnType = owner;
+            ((NodeTypeSymbol) returnType).addTypeParameters(typeParams);
         }
 
 
@@ -290,7 +368,17 @@ public class Node implements SyntaxNodeWithSymbols {
 
         SyntaxNode parametersNode = children.size() > 4 ? children.get(4) : null;
 
+        SyntaxNode statements = children.size() > 9 ? children.get(9) : null;
+
+
+
         NodeFunctionSymbol functionSymbol = new NodeFunctionSymbol(functionName, returnType, List.of(), owner, this);
+
+
+        List<VariableSymbol> locals = collectLocals(statements, functionSymbol);
+
+        functionSymbol.locals = locals;
+
 
         List<VariableSymbol> parameters = (parametersNode != null)
                 ? parseParameters(parametersNode, functionSymbol)
@@ -300,6 +388,64 @@ public class Node implements SyntaxNodeWithSymbols {
 
         return functionSymbol;
     }
+
+    private List<VariableSymbol> collectLocals(SyntaxNode statementsNode, FunctionSymbol functionOwner) {
+        List<VariableSymbol> locals = new ArrayList<>();
+
+        if (statementsNode == null) {
+            return locals;
+        }
+
+        for (SyntaxNode statement : ((Node)statementsNode).children) {
+            if (statement.kind() == SyntaxKind.VARIABLE_DEFINITION_STATEMENT) {
+                Node variableNode = (Node) statement.slot(0);
+                VariableDefinitionProcessor variableProcessor = new VariableDefinitionProcessor();
+                NodeVariableSymbol localVariable = (NodeVariableSymbol) variableProcessor.processSymbol(variableNode, functionOwner, SymbolKind.LOCAL);
+
+                variableNode.cachedSymbol = localVariable;
+                localVariable.kind = SymbolKind.LOCAL;
+                localVariable.owner = functionOwner;
+                locals.add(localVariable);
+            } else if (statement.kind() == SyntaxKind.IF_STATEMENT) {
+
+                Node condition = (Node) statement.slot(1);
+                Node trueBranch = (Node) statement.slot(3);
+                Node falseBranch = (Node) statement.slot(7);
+
+                locals.addAll(collectLocals(trueBranch, functionOwner));
+
+                if (falseBranch != null) {
+                    locals.addAll(collectLocals(falseBranch, functionOwner));
+                }
+            } else if (statement.kind() == SyntaxKind.FOR_STATEMENT) {
+                Node initializer = (Node) statement.slot(1);
+                Node body = (Node) statement.slot(5);
+
+                //locals.addAll(collectLocals(initializer, functionOwner));
+
+                NodeVariableSymbol localVariable = new NodeVariableSymbol(
+                        initializer.slot(0).token().toString(),
+                        null,
+                        functionOwner,
+                        SymbolKind.LOCAL,
+                        statement
+                );
+                ((Node) statement).cachedSymbol = localVariable;
+
+                locals.add(localVariable);
+                locals.addAll(collectLocals(body, functionOwner));
+            } else if (statement.kind() == SyntaxKind.IDENTIFIER) {
+
+               // locals.add(localVariable);
+            } else if (statement.kind() == SyntaxKind.RETURN_STATEMENT) {
+
+            }
+        }
+
+        return locals;
+    }
+
+
 
     private TypeLikeSymbol adjustTypeOwner(TypeLikeSymbol type, SemanticSymbol newOwner) {
         if (type instanceof NodeTypeParameterSymbol param) {
@@ -313,7 +459,7 @@ public class Node implements SyntaxNodeWithSymbols {
 
             NodeTypeParameterSymbol adjusted = new NodeTypeParameterSymbol(
                     param.name(),
-                    newOwner, // Новый владелец
+                    newOwner,
                     param.definition(),
                     (List<TypeLikeSymbol>) param.bounds()
             );
@@ -322,7 +468,6 @@ public class Node implements SyntaxNodeWithSymbols {
             }
             return adjusted;
         } else if (type instanceof NodeTypeSymbol baseType) {
-            // Для базовых типов рекурсивно корректируем параметры
             List<TypeParameterSymbol> updatedArguments = new ArrayList<>();
             for (TypeLikeSymbol argument : baseType.typeArguments()) {
                 TypeLikeSymbol adjusted = adjustTypeOwner(argument, newOwner);
@@ -354,7 +499,7 @@ public class Node implements SyntaxNodeWithSymbols {
             }
         }
 
-        return createPlaceholderType(typeName);
+        return null;
     }
 
     private NodeTypeSymbol createPlaceholderType(String typeName) {

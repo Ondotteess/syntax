@@ -1,15 +1,12 @@
 package syntax.node.symbol.processor;
 
 import syntax.node.Node;
+import syntax.node.symbol.BuiltInTypes;
 import syntax.node.symbol.NodeTypeParameterSymbol;
 import syntax.node.symbol.NodeTypeSymbol;
 import syspro.tm.parser.SyntaxKind;
 import syspro.tm.parser.SyntaxNode;
-import syspro.tm.symbols.SemanticSymbol;
-
-import syspro.tm.symbols.TypeLikeSymbol;
-import syspro.tm.symbols.TypeParameterSymbol;
-import syspro.tm.symbols.TypeSymbol;
+import syspro.tm.symbols.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -60,16 +57,59 @@ public class GenericNameExpressionProcessor implements SymbolProcessor {
 
                 if (node.kind() == SyntaxKind.GENERIC_NAME_EXPRESSION) {
                     NodeTypeSymbol ts = new NodeTypeSymbol(symbol.name(), symbol.definition());
-                    ArrayList<TypeParameterSymbol> ar = new ArrayList<>();
 
-                    for (SyntaxNode child : ((Node) node.slot(2)).children) {
-                        if (child.slot(0).token().toString().equals("T")) {
-                            
+                    //if (node.children.get(0).slot(0).kind() == SymbolKind.) {
+                    //    System.out.println("got ypu");
+                    //}
+
+                    if (((Node) node.slot(2).slot(0)) != null) {
+
+                        ArrayList<TypeParameterSymbol> ar = new ArrayList<>();
+
+                        for (var child: ((Node) node.slot(2).slot(0)).children) {
+                            if (inTypeParam(child.token().toString(), node.type)) {
+                                var param = node.type.getSymbols(child.token().toString()).get(0);
+                                if (param instanceof  TypeParameterSymbol) {
+                                    ar.add((TypeParameterSymbol) param);
+                                } else  {
+                                    ar.add(new TypeParameterSymbol() {
+                                        @Override
+                                        public List<? extends TypeLikeSymbol> bounds() {
+                                            return List.of();
+                                        }
+
+                                        @Override
+                                        public SemanticSymbol owner() {
+                                            return null;
+                                        }
+
+                                        @Override
+                                        public SymbolKind kind() {
+                                            return SymbolKind.CLASS;
+                                        }
+
+                                        @Override
+                                        public String name() {
+                                            return param.name();
+                                        }
+
+                                        @Override
+                                        public SyntaxNode definition() {
+                                            return null;
+                                        }
+                                    });
+
+                                }
+                            }
                         }
+
+                        ts.addTypeParameters(ar);
+
+
+
+                        //TODO: потом
                     }
 
-
-                    ts.addTypeParameters(ar);
                     return ts;
                 }
 
@@ -80,6 +120,11 @@ public class GenericNameExpressionProcessor implements SymbolProcessor {
 
         return null;
     }
+
+    private boolean inTypeParam(String name, Node type) {
+        return !type.getSymbols(name).isEmpty();
+    }
+
 
     private TypeSymbol processTypeArguments(TypeSymbol baseType, Node typeArgumentsNode, Node node) {
         List<TypeLikeSymbol> typeArguments = new ArrayList<>();

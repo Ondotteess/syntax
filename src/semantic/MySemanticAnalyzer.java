@@ -38,7 +38,7 @@ public class MySemanticAnalyzer implements LanguageServer {
                 //            ((Node) typeDef).symbol = processor.processSymbol((Node)typeDef);
                 //        }
             //    }
-        //    // TODO: тут возможно посложнее
+        //    //
         //
         //
         //}

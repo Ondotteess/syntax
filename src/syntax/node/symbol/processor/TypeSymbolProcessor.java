@@ -8,6 +8,7 @@ import syspro.tm.parser.SyntaxNode;
 import syspro.tm.symbols.*;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import static syspro.tm.parser.SyntaxKind.TYPE_BOUND;
@@ -38,6 +39,20 @@ public class TypeSymbolProcessor implements SymbolProcessor {
 
         node.addSymbol(typeName, typeSymbol);
 
+
+        SyntaxNode typeParamsNode = node.slot(3);
+        if (typeParamsNode != null && typeParamsNode.kind() == SyntaxKind.SEPARATED_LIST) {
+            List<TypeParameterSymbol> typeParameters = ((Node) typeParamsNode)
+                    .parseTypeParameters(typeParamsNode, typeSymbol, node);
+
+            for (TypeParameterSymbol typeParameter : typeParameters) {
+                node.addSymbol(typeParameter.name(), typeParameter);
+            }
+
+            typeSymbol.addTypeParameters(typeParameters);
+        }
+
+
         SyntaxNode typeBoundNode = node.slot(5);
         if (typeBoundNode != null && typeBoundNode.kind() == TYPE_BOUND) {
             SyntaxNode baseTypeNode = typeBoundNode.slot(1).slot(0);
@@ -62,21 +77,15 @@ public class TypeSymbolProcessor implements SymbolProcessor {
 
                 if (baseTypeSymbol != null) {
                     List<TypeParameterSymbol> updatedTypeArguments = new ArrayList<>();
-                    for (TypeLikeSymbol typeArgument : baseTypeSymbol.typeArguments()) {
-                        if (typeArgument instanceof NodeTypeParameterSymbol param) {
-                            if (param.owner() == typeSymbol) {
-                                node.addInvalidRange(baseTypeNode.span(), "Recursive type parameter detected: " + param.name());
-                                continue;
-                            }
-                            NodeTypeParameterSymbol updatedParam = new NodeTypeParameterSymbol(
-                                    param.name(),
-                                    (SemanticSymbol) typeSymbol,
-                                    param.definition(),
-                                    (List<TypeLikeSymbol>) param.bounds()
-                            );
-                            updatedTypeArguments.add(updatedParam);
-                        }
+
+                    for (var a: ((Node)node.slot(5).slot(1)).children) {
+                        GenericNameExpressionProcessor pr = new GenericNameExpressionProcessor();
+                        TypeSymbol baseType = (TypeSymbol) pr.processSymbol((Node) a);
+                        ((Node) a).cachedSymbol = baseType;
+                        updatedTypeArguments.addAll((Collection<? extends TypeParameterSymbol>) baseType.typeArguments());
+                        var b = 11;
                     }
+
 
                     NodeTypeSymbol updatedBaseTypeSymbol = new NodeTypeSymbol(baseTypeSymbol.name(), baseTypeSymbol.definition());
                     updatedBaseTypeSymbol.addTypeParameters(updatedTypeArguments);
@@ -90,25 +99,14 @@ public class TypeSymbolProcessor implements SymbolProcessor {
             }
         }
 
-        SyntaxNode typeParamsNode = node.slot(3);
-        if (typeParamsNode != null && typeParamsNode.kind() == SyntaxKind.SEPARATED_LIST) {
-            List<TypeParameterSymbol> typeParameters = ((Node) typeParamsNode)
-                    .parseTypeParameters(typeParamsNode, typeSymbol, node);
-
-            for (TypeParameterSymbol typeParameter : typeParameters) {
-                node.addSymbol(typeParameter.name(), typeParameter);
-            }
-
-            typeSymbol.addTypeParameters(typeParameters);
-        }
 
         if (node.slotCount() > 7 && node.slot(7) != null) {
-            for (SyntaxNode child : node.slot(7).descendants(false)) {
+            for (SyntaxNode child : ((Node)node.slot(7)).children) {
                 if (child instanceof Node childNode) {
                     if (childNode.kind() == SyntaxKind.FUNCTION_DEFINITION) {
                         childNode.setParent(node);
                         childNode.type = (node);
-                        SemanticSymbol functionSymbol = childNode.createFunctionSymbol(typeSymbol);
+                        SemanticSymbol functionSymbol = childNode.createFunctionSymbol(typeSymbol, typeSymbol.typeParameters);
                         if (functionSymbol instanceof MemberSymbol memberSymbol) {
                             typeSymbol.addMember(memberSymbol);
                         }

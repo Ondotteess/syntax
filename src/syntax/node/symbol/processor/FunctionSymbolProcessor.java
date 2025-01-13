@@ -2,7 +2,10 @@ package syntax.node.symbol.processor;
 
 import syntax.node.Node;
 import syspro.tm.symbols.SemanticSymbol;
+import syspro.tm.symbols.TypeParameterSymbol;
 import syspro.tm.symbols.TypeSymbol;
+
+import java.util.List;
 
 public class FunctionSymbolProcessor implements SymbolProcessor {
     @Override
@@ -12,6 +15,6 @@ public class FunctionSymbolProcessor implements SymbolProcessor {
             return null;
         }
 
-        return node.createFunctionSymbol(typeOwner);
+        return node.createFunctionSymbol(typeOwner, (List<TypeParameterSymbol>) ((TypeSymbol) owner).typeArguments());
     }
 }

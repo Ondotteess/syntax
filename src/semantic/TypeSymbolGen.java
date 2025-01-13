@@ -112,12 +112,12 @@ public class TypeSymbolGen implements TypeSymbol {
         }
 
         String functionName = nameNode.token().toString();
-        NodeFunctionSymbol functionSymbol = new NodeFunctionSymbol(functionName, null, List.of(), this, functionNode);
+        //NodeFunctionSymbol functionSymbol = new NodeFunctionSymbol(functionName, null, List.of(), this, functionNode);
 
-        List<VariableSymbol> parameters = processFunctionParameters(functionNode, functionSymbol);
-        functionSymbol.setParameters(parameters);
+       // List<VariableSymbol> parameters = processFunctionParameters(functionNode, functionSymbol);
+        //functionSymbol.setParameters(parameters);
 
-        return functionSymbol;
+        return null;
     }
 
     private List<VariableSymbol> processFunctionParameters(Node functionNode, FunctionSymbol owner) {

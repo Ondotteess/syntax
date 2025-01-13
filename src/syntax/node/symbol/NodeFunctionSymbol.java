@@ -1,5 +1,6 @@
 package syntax.node.symbol;
 
+import syntax.node.Node;
 import syspro.tm.lexer.Keyword;
 import syspro.tm.parser.SyntaxKind;
 import syspro.tm.parser.SyntaxNode;
@@ -13,11 +14,12 @@ public class NodeFunctionSymbol implements FunctionSymbol {
     private List<VariableSymbol> parameters;
     private final SemanticSymbol owner;
     private final SyntaxNode node;
+    public List<? extends VariableSymbol> locals;
 
-    private final boolean isAbstract;
-    private final boolean isVirtual;
-    private final boolean isOverride;
-    private final boolean isNative;
+    private boolean isAbstract;
+    private boolean isVirtual;
+    private boolean isOverride;
+    private boolean isNative;
 
     public NodeFunctionSymbol(String name, TypeLikeSymbol returnType, List<VariableSymbol> parameters, SemanticSymbol owner, SyntaxNode node) {
         this.name = name;
@@ -26,10 +28,10 @@ public class NodeFunctionSymbol implements FunctionSymbol {
         this.owner = owner;
         this.node = node;
 
-        this.isAbstract = checkIsAbstract();
-        this.isVirtual = checkIsVirtual();
-        this.isOverride = checkIsOverride();
-        this.isNative = checkIsNative();
+
+
+
+
     }
 
     private boolean checkIsAbstract() {
@@ -47,8 +49,53 @@ public class NodeFunctionSymbol implements FunctionSymbol {
         if (owner != null && owner.kind() == SymbolKind.INTERFACE) {
             return true;
         }
+
+        if (((Node) node.slot(0)) != null) {
+            for (SyntaxNode modifier : ((Node) node.slot(0)).children) {
+                if (modifier.kind().equals(Keyword.VIRTUAL)) {
+                    return true;
+                }
+            }
+        }
+
+        if (owner instanceof TypeSymbol ownerType) {
+
+            for (TypeSymbol baseType : ownerType.baseTypes()) {
+                var sym = ((Node) baseType.definition()).cachedSymbol;
+                var members = ((NodeTypeSymbol)sym).members;
+
+                for (MemberSymbol baseMember : members) {
+
+                    if ((baseMember instanceof FunctionSymbol baseFunction)
+                            && baseFunction.isVirtual()
+                            && baseFunction.name().equals(name)
+                            && hasSameSignature(baseFunction)) {
+
+                        //if (!isOverride) {
+                            //node.addInvalidRange(node.span(), "Function " + name + " must be marked as override.");
+                        //}
+                        return true;
+                    }
+                }
+            }
+        }
+
         return false;
     }
+
+    private boolean hasSameSignature(FunctionSymbol baseFunction) {
+        if (!name.equals(baseFunction.name())) {
+            return false;
+        }
+
+        List<? extends VariableSymbol> baseParams = baseFunction.parameters();
+        if (parameters.size() != baseParams.size()) {
+            return false;
+        }
+
+        return true;
+    }
+
 
     private boolean checkIsOverride() {
         for (SyntaxNode modifier : node.descendants(false).get(0).descendants(false)) {
@@ -99,7 +146,7 @@ public class NodeFunctionSymbol implements FunctionSymbol {
 
     @Override
     public List<? extends VariableSymbol> locals() {
-        return List.of();
+        return locals;
     }
 
     @Override
@@ -124,5 +171,10 @@ public class NodeFunctionSymbol implements FunctionSymbol {
 
     public void setParameters(List<VariableSymbol> parameters) {
         this.parameters = parameters;
+        this.isAbstract = checkIsAbstract();
+        this.isVirtual = checkIsVirtual();
+        this.isOverride = checkIsOverride();
+        this.isNative = checkIsNative();
+
     }
 }

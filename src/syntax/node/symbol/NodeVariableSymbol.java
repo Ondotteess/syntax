@@ -9,8 +9,8 @@ import syspro.tm.symbols.VariableSymbol;
 public class NodeVariableSymbol implements VariableSymbol {
     private final String name;
     private final TypeLikeSymbol type;
-    private final SemanticSymbol owner;
-    private final SymbolKind kind;
+    public SemanticSymbol owner;
+    public SymbolKind kind;
     private final SyntaxNode definition;
 
     public NodeVariableSymbol(String name, TypeLikeSymbol type, SemanticSymbol owner, SymbolKind kind, SyntaxNode definition) {

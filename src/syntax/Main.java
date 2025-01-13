@@ -186,7 +186,7 @@ class ArrayList<T> <: Iterable<T>
         //int b = 1;
         //b++;
         testSemantic();
-
+        //testParser();
     }
 
 }
