@@ -149,8 +149,8 @@ public class NodeFunctionSymbol implements FunctionSymbol {
     public void setParameters(List<VariableSymbol> parameters) {
         this.parameters = parameters;
         this.isAbstract = checkIsAbstract();
-        this.isVirtual = checkIsVirtual();
         this.isOverride = checkIsOverride();
+        this.isVirtual = checkIsVirtual();
         this.isNative = checkIsNative();
 
     }
