@@ -46,7 +46,7 @@ public class NodeFunctionSymbol implements FunctionSymbol {
     }
 
     private boolean checkIsVirtual() {
-        if (owner != null && owner.kind() == SymbolKind.INTERFACE) {
+        if (this.isAbstract || this.isOverride) {
             return true;
         }
 
@@ -57,29 +57,6 @@ public class NodeFunctionSymbol implements FunctionSymbol {
                 }
             }
         }
-
-        if (owner instanceof TypeSymbol ownerType) {
-
-            for (TypeSymbol baseType : ownerType.baseTypes()) {
-                var sym = ((Node) baseType.definition()).cachedSymbol;
-                var members = ((NodeTypeSymbol)sym).members;
-
-                for (MemberSymbol baseMember : members) {
-
-                    if ((baseMember instanceof FunctionSymbol baseFunction)
-                            && baseFunction.isVirtual()
-                            && baseFunction.name().equals(name)
-                            && hasSameSignature(baseFunction)) {
-
-                        //if (!isOverride) {
-                            //node.addInvalidRange(node.span(), "Function " + name + " must be marked as override.");
-                        //}
-                        return true;
-                    }
-                }
-            }
-        }
-
         return false;
     }
 

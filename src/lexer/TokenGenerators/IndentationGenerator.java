@@ -153,17 +153,18 @@ public class IndentationGenerator extends TokenGenerator{
     @Override
     public Token getToken() {
         int end = computeEnd();
-        if (!buffer.toString().contains("\n")) {
-            end = start;
+
+        if (endOfFile && (buffer.length() > 0 && buffer.charAt(buffer.length() - 1) != '\n')) {
+            end--;
         }
-        //System.out.println("start: "+ start + " end: " + end + " len: " + (end - start - 1));
 
-        return new IndentationToken(start,
-                                    end,
-                                    leadingTrivialLen,
-                                    trailingTrivialLen,
-                                    difference);
-
+        return new IndentationToken(
+                start,
+                end,
+                leadingTrivialLen,
+                trailingTrivialLen,
+                difference
+        );
     }
 
     @Override
