@@ -8,28 +8,30 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class NodeTypeSymbol implements TypeSymbol {
-    public  String name;
+    public String name;
     public SyntaxNode definition;
-    public  List<MemberSymbol> members = new ArrayList<>();
-    public  List<TypeParameterSymbol> typeParameters = new ArrayList<>();
-    public  List<TypeSymbol> baseTypes = new ArrayList<>();
-
-
+    public List<MemberSymbol> members = new ArrayList<>();
+    public List<TypeParameterSymbol> typeParameters = new ArrayList<>();
+    public List<TypeSymbol> baseTypes = new ArrayList<>();
     public boolean isAbstract;
+
+    private final NodeTypeSymbol originalDefinition;
 
     public NodeTypeSymbol(String name, SyntaxNode definition) {
         this.name = name;
         this.definition = definition;
         this.isAbstract = determineAbstract();
+        this.originalDefinition = this;
     }
 
     public NodeTypeSymbol(NodeTypeSymbol nts) {
         this.name = nts.name;
         this.definition = nts.definition;
         this.members = nts.members;
-        this.typeParameters= nts.typeParameters;
+        this.typeParameters = nts.typeParameters;
         this.baseTypes = nts.baseTypes;
         this.isAbstract = nts.isAbstract;
+        this.originalDefinition = nts.originalDefinition;
     }
 
     public void setDefinition(SyntaxNode definition) {
@@ -42,7 +44,6 @@ public class NodeTypeSymbol implements TypeSymbol {
     }
 
     public void addMember(MemberSymbol member) {
-
         members.add(member);
 
         if (member instanceof FunctionSymbol function && function.isAbstract()) {
@@ -51,7 +52,7 @@ public class NodeTypeSymbol implements TypeSymbol {
     }
 
     public void addTypeParameters(List<TypeParameterSymbol> typeParameters) {
-        this.typeParameters = (typeParameters);
+        this.typeParameters = typeParameters;
     }
 
     @Override
@@ -104,7 +105,7 @@ public class NodeTypeSymbol implements TypeSymbol {
 
     @Override
     public TypeSymbol originalDefinition() {
-        return this;
+        return originalDefinition;
     }
 
     @Override
@@ -137,5 +138,9 @@ public class NodeTypeSymbol implements TypeSymbol {
     @Override
     public SyntaxNode definition() {
         return definition;
+    }
+
+    public Iterable<? extends TypeParameterSymbol> typeParameters() {
+        return typeParameters;
     }
 }

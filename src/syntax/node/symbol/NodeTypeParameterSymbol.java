@@ -11,7 +11,7 @@ import java.util.List;
 
 public class NodeTypeParameterSymbol implements TypeParameterSymbol {
     private final String name;
-    private final SemanticSymbol owner;
+    public SemanticSymbol owner;
     private final SyntaxNode definition;
     private final List<TypeLikeSymbol> bounds;
 

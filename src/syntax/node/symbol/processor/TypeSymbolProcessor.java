@@ -128,7 +128,7 @@ public class TypeSymbolProcessor implements SymbolProcessor {
 
             }
         }
-
+        node.parent.addSymbol(typeName, typeSymbol);
         return typeSymbol;
     }
 

@@ -14,12 +14,14 @@ import syspro.tm.symbols.*;
 
 
 public class Node implements SyntaxNodeWithSymbols {
-    private final AnySyntaxKind kind;
-    private final Token token;
-    private final ArrayList<SyntaxNode> children;
-    private final List<Diagnostic> diagnostics;
-    private final Map<String, List<SemanticSymbol>> localSymbolTable = new HashMap<>();
-    private SemanticSymbol cachedSymbol;
+    public AnySyntaxKind kind;
+    public Token token;
+    public ArrayList<SyntaxNode> children;
+    public List<Diagnostic> diagnostics;
+    public Map<String, List<SemanticSymbol>> localSymbolTable = new HashMap<>();
+    public SemanticSymbol cachedSymbol;
+
+    public SemanticSymbol symbol;
 
     public Node parent;
     public Node type;
@@ -48,6 +50,16 @@ public class Node implements SyntaxNodeWithSymbols {
         if (kind instanceof SyntaxKind && ((SyntaxKind) kind).equals(SyntaxKind.TYPE_DEFINITION)) {
             type = this;
         }
+    }
+
+    public Node(Node node){
+        this.kind = node.kind ;
+        this.token= node.token;
+        this.children= node.children;
+        this.diagnostics= node.diagnostics;
+        this.cachedSymbol= null;
+        this.parent= node.parent;
+        this.type= node.type;
     }
 
 
@@ -150,23 +162,22 @@ public class Node implements SyntaxNodeWithSymbols {
         }
     }
 
+    //@Override
+            //public SemanticSymbol symbol() {
+        //    return symbol;
+        //}
+
     @Override
     public SemanticSymbol symbol() {
         if (cachedSymbol == null) {
             SymbolProcessor processor = getSymbolProcessorForKind(kind());
             if (processor != null) {
-                SemanticSymbol newSymbol = processor.processSymbol(this);
-
-                if (newSymbol instanceof NodeTypeSymbol typeSymbol) {
-                    updatePlaceholders(typeSymbol);
-                }
-
-                cachedSymbol = newSymbol;
+                cachedSymbol = processor.processSymbol(this);
             }
         }
-
+//
         return cachedSymbol;
-
+//
     }
 
     private void updatePlaceholders(NodeTypeSymbol definedType) {
@@ -194,6 +205,8 @@ public class Node implements SyntaxNodeWithSymbols {
             return new IdentifierNameExpressionProcessor();
         } else if (kind == SyntaxKind.VARIABLE_DEFINITION) {
             return new VariableDefinitionProcessor();
+        } else if (kind == SyntaxKind.GENERIC_NAME_EXPRESSION) {
+            return new GenericNameExpressionProcessor();
         }
 
         return null;
@@ -270,7 +283,7 @@ public class Node implements SyntaxNodeWithSymbols {
             returnType = resolveTypeFromDefinitions(typeName);
         }
 
-        //
+
         // if (returnType != null) {
         //     returnType = adjustTypeOwner(returnType, owner);
         // }
@@ -290,25 +303,39 @@ public class Node implements SyntaxNodeWithSymbols {
 
     private TypeLikeSymbol adjustTypeOwner(TypeLikeSymbol type, SemanticSymbol newOwner) {
         if (type instanceof NodeTypeParameterSymbol param) {
-            return new NodeTypeParameterSymbol(
+            if (newOwner instanceof NodeTypeSymbol ownerType) {
+                for (TypeLikeSymbol existing : ownerType.typeArguments()) {
+                    if (existing.name().equals(param.name())) {
+                        return existing;
+                    }
+                }
+            }
+
+            NodeTypeParameterSymbol adjusted = new NodeTypeParameterSymbol(
                     param.name(),
-                    newOwner,
+                    newOwner, // Новый владелец
                     param.definition(),
                     (List<TypeLikeSymbol>) param.bounds()
             );
+            if (newOwner instanceof NodeTypeSymbol ownerType) {
+                ownerType.addTypeParameters((List<TypeParameterSymbol>) adjusted);
+            }
+            return adjusted;
         } else if (type instanceof NodeTypeSymbol baseType) {
+            // Для базовых типов рекурсивно корректируем параметры
             List<TypeParameterSymbol> updatedArguments = new ArrayList<>();
             for (TypeLikeSymbol argument : baseType.typeArguments()) {
-                if (argument instanceof TypeParameterSymbol parameterSymbol) {
-                    updatedArguments.add((TypeParameterSymbol) adjustTypeOwner(parameterSymbol, newOwner));
+                TypeLikeSymbol adjusted = adjustTypeOwner(argument, newOwner);
+                if (adjusted instanceof TypeParameterSymbol paramAdjusted) {
+                    updatedArguments.add(paramAdjusted);
                 }
             }
-            NodeTypeSymbol adjustedType = new NodeTypeSymbol(baseType.name(), baseType.definition());
-            adjustedType.addTypeParameters(updatedArguments);
-            return adjustedType;
+            ((NodeTypeSymbol) type).addTypeParameters(updatedArguments);
+            return type;
         }
         return type;
     }
+
 
 
 

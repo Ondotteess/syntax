@@ -1,5 +1,6 @@
 package semantic;
 
+import syntax.node.Node;
 import syspro.tm.parser.Diagnostic;
 import syspro.tm.parser.SyntaxNode;
 import syspro.tm.parser.TextSpan;
@@ -44,7 +45,12 @@ class SemanticModelImpl implements SemanticModel {
 
     @Override
     public List<? extends TypeSymbol> typeDefinitions() {
-        return typeSymbols;
+        ArrayList<TypeSymbolGen> definitions = new ArrayList<>();
+        for (SyntaxNode def: ((Node) root().slot(0)).children) {
+            String name = def.slot(1).token().toString();
+            //definitions.add(new TypeSymbolGen(name, def));
+        }
+        return definitions;
     }
 
     @Override

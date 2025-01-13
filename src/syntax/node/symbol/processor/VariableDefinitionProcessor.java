@@ -29,16 +29,23 @@ public class VariableDefinitionProcessor implements SymbolProcessor {
             return null;
         }
 
+        SemanticSymbol owner = searchOwner(node);
+
         NodeVariableSymbol variableSymbol = new NodeVariableSymbol(
                 variableName,
                 variableType,
-                node.getParent().symbol(),
+                node.type.cachedSymbol,
                 SymbolKind.FIELD,
                 node
         );
 
         node.addSymbol(variableName, variableSymbol);
         return variableSymbol;
+    }
+
+    private SemanticSymbol searchOwner(Node node) {
+        //if (node.type.getSymbols().isEmpty())// нашелся символ с таким же именем значит владелец - тип
+        return null;
     }
 
 }
